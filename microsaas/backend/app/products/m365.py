@@ -1,8 +1,9 @@
 """Conexiones a tenants de Microsoft 365 vía consentimiento de administrador (app multi-tenant de Entra ID).
 
 Perfil `read`  -> LicenciaLens (User.Read.All, Organization.Read.All, AuditLog.Read.All)
-Perfil `admin` -> OffboardKit (User.ReadWrite.All, Group.ReadWrite.All, Directory.ReadWrite.All,
-                                MailboxSettings.ReadWrite, User.RevokeSessions.All)
+Perfil `admin` -> OffboardKit (User.ReadWrite.All, User-PasswordProfile.ReadWrite.All, User.RevokeSessions.All,
+                                GroupMember.ReadWrite.All, LicenseAssignment.ReadWrite.All, MailboxSettings.ReadWrite,
+                                Organization.Read.All)
 """
 
 import time

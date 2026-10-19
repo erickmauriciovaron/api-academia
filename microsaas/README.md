@@ -67,10 +67,10 @@ En <https://entra.microsoft.com> de **tu** tenant → *App registrations* → *N
 |---|---|---|
 | Supported account types | **Accounts in any organizational directory (Multitenant)** | igual |
 | Redirect URI (Web) | `https://suite.tudominio.com/app/m365/callback` | igual |
-| API permissions → Microsoft Graph → **Application** | `User.Read.All`, `Organization.Read.All`, `AuditLog.Read.All` | `User.ReadWrite.All`, `Group.ReadWrite.All`, `Directory.ReadWrite.All`, `MailboxSettings.ReadWrite`, `User.RevokeSessions.All` |
+| API permissions → Microsoft Graph → **Application** | `User.Read.All`, `Organization.Read.All`, `AuditLog.Read.All` | `User.ReadWrite.All`, `User-PasswordProfile.ReadWrite.All`, `User.RevokeSessions.All`, `GroupMember.ReadWrite.All`, `LicenseAssignment.ReadWrite.All`, `MailboxSettings.ReadWrite`, `Organization.Read.All` |
 | Certificates & secrets | Crea un *client secret* (anótalo y su vencimiento) | igual |
 
-Cuando tu cliente pulsa “Conectar tenant”, su administrador global aprueba los permisos en su propio tenant. Para cambiar contraseñas con OffboardKit, el cliente debe asignar además el rol **User Administrator** a la app en su tenant (Entra → Roles). Si no lo hace, ese paso queda en error en el acta y los demás sí se ejecutan.
+Cuando tu cliente pulsa “Conectar tenant”, su administrador global aprueba los permisos en su propio tenant. No concedas el consentimiento en tu propio tenant: lo da cada cliente al conectar. Si el cliente quiere que OffboardKit también pueda bloquear o cambiar la contraseña de **administradores**, debe asignar a la app el rol **Privileged Authentication Administrator** en su tenant (Entra → Roles); sin él, ese paso queda en error en el acta y los demás sí se ejecutan.
 
 ### 1.4 WhatsApp (opcional)
 Con la WhatsApp Cloud API (Meta Business), crea una plantilla de tipo *utility* llamada `alerta_generica`, con un solo parámetro de cuerpo (`{{1}}`). Copia el token permanente y el *Phone number ID*. Sin esta configuración, las alertas salen solo por correo.
