@@ -1,0 +1,7 @@
+{
+  "name": "microsuite-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": { "smoke": "node smoke.mjs ./shots" },
+  "dependencies": { "playwright": "1.49.1" }
+}

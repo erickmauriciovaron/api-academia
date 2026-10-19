@@ -1,0 +1,59 @@
+# MicroSuite: 10 micro SaaS en un solo despliegue (pensado para un Droplet de 2 GB).
+# Uso: cp .env.example .env && (editar) && docker compose up -d --build
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-suite}
+      POSTGRES_USER: ${POSTGRES_USER:-suite}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}
+    command: postgres -c shared_buffers=128MB -c max_connections=50 -c work_mem=4MB
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-suite} -d ${POSTGRES_DB:-suite}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 384m
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-suite}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-suite}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    mem_limit: 384m
+
+  worker:
+    build: ./backend
+    restart: unless-stopped
+    command: ["python", "-m", "app.worker"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-suite}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-suite}
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 256m
+
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8080}:80"
+    mem_limit: 64m
+
+volumes:
+  pgdata:
