@@ -102,7 +102,7 @@ ln -sf /etc/nginx/sites-available/microsuite /etc/nginx/sites-enabled/microsuite
 nginx -t && systemctl reload nginx
 if [ -z "${SKIP_CERTBOT:-}" ]; then
   CERT_ARGS=(-d "$DOMAIN"); for d in $EXTRA_DOMAINS; do CERT_ARGS+=(-d "$d"); done
-  certbot --nginx --non-interactive --agree-tos --redirect -m "$ADMIN_EMAIL" "${CERT_ARGS[@]}" \
+  certbot --nginx --non-interactive --agree-tos --redirect --expand -m "$ADMIN_EMAIL" "${CERT_ARGS[@]}" \
     || echo "AVISO: certbot falló. Verifica que el DNS de $DOMAIN apunte a este servidor y ejecuta: certbot --nginx -d $DOMAIN"
 fi
 
@@ -135,8 +135,6 @@ docker compose ps --format '  {{.Service}}: {{.Status}}'
 echo
 echo "  Sitio:        https://$DOMAIN"
 echo "  Superadmin:   https://$DOMAIN/app/admin   (credenciales en $CRED_FILE)"
-grep -qE '^PAYPAL_CLIENT_ID=.+' .env || echo "  PENDIENTE:    PayPal sin credenciales -> los clientes aún no pueden pagar (ver README §2.1)"
-grep -qE '^SMTP_HOST=.+' .env || echo "  PENDIENTE:    SMTP sin configurar -> los correos solo se registran en el log"
-grep -qE '^M365_READ_CLIENT_ID=.+' .env || echo "  PENDIENTE:    apps de Entra ID sin configurar -> LicenciaLens/OffboardKit no pueden conectar tenants"
+echo "  Revisa en https://$DOMAIN/app/admin → Integraciones que PayPal, correo y Microsoft 365 estén configurados."
 echo
 echo "  Para cambiar algo: edita $DIR/.env y ejecuta de nuevo este script (o: docker compose up -d)."
