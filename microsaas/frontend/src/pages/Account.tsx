@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
+import { track } from '../analytics'
 import { Sub, useAuth } from '../auth'
-import { useCatalog } from '../catalog'
+import { loadCatalog, useCatalog } from '../catalog'
 import { fmtDate, fmtDateTime, money, pick, tr, useLang } from '../i18n'
 import { Badge, ErrorBox, Modal, PageHead, Spinner, toast, useAction, useAsync } from '../components/ui'
 import { PricingTable } from './Public'
@@ -43,6 +44,7 @@ export function Billing() {
 
   const pick_ = async (plan: { code: string }, interval: 'month' | 'year') => {
     setBusyPlan(plan.code)
+    track('begin_checkout', { product: choose || undefined, plan: plan.code })
     const r = await run(() => api<{ approve_url: string }>('/api/billing/checkout', { body: { product: choose, plan: plan.code, interval } }))
     if (r?.approve_url) location.href = r.approve_url
     else setBusyPlan(null)
@@ -147,8 +149,10 @@ export function BillingReturn() {
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     const product = params.get('product')
-    api('/api/billing/confirm', { body: { product, subscription_id: params.get('subscription_id') } })
-      .then(async () => {
+    api<Sub>('/api/billing/confirm', { body: { product, subscription_id: params.get('subscription_id') } })
+      .then(async (s) => {
+        const pl = (await loadCatalog()).products.find((x) => x.slug === s.product)?.plans.find((x) => x.code === s.plan)
+        if (s.status === 'active' && pl) track('purchase', { product: s.product, plan: s.plan, value: s.interval === 'year' ? pl.price_year : pl.price })
         await refresh()
         toast(tr('¡Pago confirmado! Gracias.', 'Payment confirmed! Thank you.'))
         nav(`/app/${product}`)

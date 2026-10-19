@@ -83,9 +83,21 @@ def import_calendar(path: str) -> None:
     print(res)
 
 
+def export_catalog(path: str) -> None:
+    """Exporta el catálogo público a JSON (lo usa el prerender SEO del frontend)."""
+    import json
+
+    data = catalog.public_catalog()
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump({"products": data, "trial_days": get_settings().trial_days}, fh, ensure_ascii=False, indent=1, default=str)
+        fh.write("\n")
+    print(f"Catálogo exportado: {path}")
+
+
 def main() -> None:
-    init_db()
     args = sys.argv[1:]
+    if args[:1] != ["export-catalog"]:
+        init_db()
     if not args:
         sys.exit(__doc__)
     cmd, rest = args[0], args[1:]
@@ -95,6 +107,9 @@ def main() -> None:
         paypal_sync()
     elif cmd == "paypal-webhook" and len(rest) == 1:
         paypal_webhook(rest[0])
+    elif cmd == "export-catalog" and len(rest) == 1:
+        export_catalog(rest[0])
+        return
     elif cmd == "import-calendar" and len(rest) == 1:
         import_calendar(rest[0])
     else:

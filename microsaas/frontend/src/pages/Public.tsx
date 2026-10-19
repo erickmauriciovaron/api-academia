@@ -1,5 +1,6 @@
-import { ReactNode, useState } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { ReactNode, useEffect, useState } from 'react'
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { setSeo } from '../analytics'
 import { useAuth } from '../auth'
 import { Plan, Product, useCatalog } from '../catalog'
 import { money, pick, setLang, tr, useLang } from '../i18n'
@@ -8,6 +9,17 @@ import { Spinner } from '../components/ui'
 export function PublicLayout({ children, product }: { children: ReactNode; product?: Product }) {
   const { me } = useAuth()
   const lang = useLang()
+  const loc = useLocation()
+  const nav = useNavigate()
+  const toggleLang = () => {
+    const next = lang === 'es' ? 'en' : 'es'
+    setLang(next)
+    const isPublic = loc.pathname === '/' || loc.pathname === '/en' || loc.pathname.startsWith('/p/') || loc.pathname.startsWith('/en/')
+    if (isPublic) {
+      const base = loc.pathname.replace(/^\/en(?=\/|$)/, '') || '/'
+      nav(next === 'en' ? (base === '/' ? '/en' : '/en' + base) : base)
+    }
+  }
   return (
     <div style={product ? ({ '--accent': product.color } as React.CSSProperties) : undefined}>
       <nav className="public-nav">
@@ -15,7 +27,7 @@ export function PublicLayout({ children, product }: { children: ReactNode; produ
           <span>{product?.icon || '⚡'}</span> {product?.name || 'MicroSuite'}
         </Link>
         <div className="row">
-          <button className="btn ghost sm" onClick={() => setLang(lang === 'es' ? 'en' : 'es')}>
+          <button className="btn ghost sm" onClick={toggleLang}>
             🌐 {lang === 'es' ? 'English' : 'Español'}
           </button>
           {me ? (
@@ -51,7 +63,14 @@ export function PublicLayout({ children, product }: { children: ReactNode; produ
 
 export function Home({ domainProduct }: { domainProduct?: string | null }) {
   const catalog = useCatalog()
-  useLang()
+  const lang = useLang()
+  useEffect(() => {
+    if (!domainProduct)
+      setSeo(
+        tr('MicroSuite: 10 micro apps para pymes y equipos de TI', 'MicroSuite: 10 micro apps for SMBs and IT teams'),
+        tr('Licencias Microsoft 365, inventario TI, vencimientos, cobranza y más. Prueba gratis.', 'Microsoft 365 license savings, IT asset inventory, expiry alerts, invoice reminders and more. Free trial.'),
+      )
+  }, [lang, domainProduct])
   if (domainProduct) return <Landing slugOverride={domainProduct} />
   if (!catalog) return <Spinner />
   return (
@@ -68,7 +87,7 @@ export function Home({ domainProduct }: { domainProduct?: string | null }) {
         </section>
         <div className="grid grid-3">
           {catalog.products.map((p) => (
-            <Link key={p.slug} to={`/p/${p.slug}`} className="card product-card">
+            <Link key={p.slug} to={`${lang === 'en' ? '/en' : ''}/p/${p.slug}`} className="card product-card">
               <div className="row">
                 <div className="product-icon" style={{ background: `${p.color}1a` }}>
                   {p.icon}
@@ -142,6 +161,7 @@ export function Landing({ slugOverride }: { slugOverride?: string }) {
   const p = catalog.products.find((x) => x.slug === slug)
   if (!p) return <Navigate to="/" />
   const start = me ? `/app/${p.slug}` : `/signup?product=${p.slug}`
+  setSeo(`${p.name}: ${pick(p.tagline)}`, pick(p.description))
   return (
     <PublicLayout product={p}>
       <div className="container">

@@ -40,7 +40,7 @@ async def reload_integrations(request: Request, call_next):
     return await call_next(request)
 
 
-for r in (auth.router, auth.team, billing.router, public.router, admin.router, *ROUTERS):
+for r in (auth.router, auth.team, billing.router, public.router, public.seo, admin.router, *ROUTERS):
     app.include_router(r)
 
 

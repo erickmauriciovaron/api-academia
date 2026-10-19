@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
+import { track } from '../analytics'
 import { Me, useAuth } from '../auth'
 import { useCatalog } from '../catalog'
 import { getLang, tr, useLang } from '../i18n'
@@ -96,6 +97,7 @@ export function Signup() {
               e.preventDefault()
               submit(async () => {
                 const r = await api<TokenRes>('/api/auth/signup', { body: { ...form, lang: getLang() } })
+                track('sign_up', { product: form.product })
                 loginWith(r.access_token, r.user)
                 nav(`/app/${form.product}`)
               })

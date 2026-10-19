@@ -1,17 +1,29 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Link, Navigate, Route, Routes, useParams } from 'react-router-dom'
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
+import { initAnalytics, trackPageview } from './analytics'
 import { api } from './api'
 import { useAuth } from './auth'
-import { useCatalog } from './catalog'
+import { loadCatalog, useCatalog } from './catalog'
 import AppShell from './components/AppShell'
 import { Spinner, Toaster, useAction } from './components/ui'
-import { pick, tr, useLang } from './i18n'
+import { pick, setLang, tr, useLang } from './i18n'
 import { Billing, BillingReturn, MoreApps, Profile, Team } from './pages/Account'
 import Admin from './pages/Admin'
 import { Forgot, Login, Reset, Signup } from './pages/Auth'
 import { Home, Landing, Legal } from './pages/Public'
 import { DatosForm, M365Callback, SignHandover, SupportPortal, SupportTicket } from './pages/public/PublicForms'
 import { PRODUCT_NAV } from './products'
+
+// Las URLs /en/... fijan el idioma inglés al entrar (útil para enlaces y buscadores).
+if (location.pathname === '/en' || location.pathname.startsWith('/en/')) setLang('en')
+
+function PageviewTracker() {
+  const loc = useLocation()
+  useEffect(() => {
+    trackPageview(loc.pathname)
+  }, [loc.pathname])
+  return null
+}
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { me, loading } = useAuth()
@@ -97,6 +109,9 @@ function Plain({ children }: { children: JSX.Element }) {
 export default function App() {
   const [domainProduct, setDomainProduct] = useState<string | null | undefined>(undefined)
   useEffect(() => {
+    loadCatalog()
+      .then((c) => initAnalytics(c.analytics))
+      .catch(() => undefined)
     api<{ product: string | null }>('/api/public/context')
       .then((r) => setDomainProduct(r.product))
       .catch(() => setDomainProduct(null))
@@ -105,9 +120,12 @@ export default function App() {
   return (
     <BrowserRouter>
       <Toaster />
+      <PageviewTracker />
       <Routes>
         <Route path="/" element={<Home domainProduct={domainProduct} />} />
+        <Route path="/en" element={<Home domainProduct={domainProduct} />} />
         <Route path="/p/:slug" element={<Landing />} />
+        <Route path="/en/p/:slug" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot" element={<Forgot />} />

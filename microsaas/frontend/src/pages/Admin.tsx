@@ -272,6 +272,14 @@ const SECTIONS: { title: string; help: string; fields: Field[] }[] = [
     ],
   },
   {
+    title: 'Analítica (recomendado)',
+    help: 'Mide visitas, registros (sign_up), inicios de pago (begin_checkout) y ventas (purchase). Google Analytics 4: analytics.google.com → Admin → Flujos de datos → ID "G-…". Plausible: el dominio de tu sitio.',
+    fields: [
+      ['analytics_ga4_id', 'ID de medición de Google Analytics 4', undefined, undefined, 'G-XXXXXXXXXX'],
+      ['analytics_plausible_domain', 'Dominio en Plausible (opcional)'],
+    ],
+  },
+  {
     title: 'Dominios propios por app (opcional)',
     help: 'Ej.: licencialens.com=licencialens,venceya.app=venceya (el DNS y el certificado se configuran en el servidor).',
     fields: [['product_domains', 'Dominios']],

@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     m365_admin_client_id: str = ""
     m365_admin_client_secret: str = ""
 
+    # Analítica (opcional): Google Analytics 4 y/o Plausible
+    analytics_ga4_id: str = ""
+    analytics_plausible_domain: str = ""
+    analytics_plausible_src: str = "https://plausible.io/js/script.js"
+
     # Dominios propios por producto: "licencialens.com=licencialens,venceya.app=venceya"
     product_domains: str = ""
 

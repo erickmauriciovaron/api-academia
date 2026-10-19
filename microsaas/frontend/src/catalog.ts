@@ -26,7 +26,13 @@ export type Product = {
   plans: Plan[]
 }
 
-export type Catalog = { products: Product[]; trial_days: number; annual_multiplier: number; payments: string }
+export type Catalog = {
+  products: Product[]
+  trial_days: number
+  annual_multiplier: number
+  payments: string
+  analytics?: { ga4_id?: string; plausible_domain?: string; plausible_src?: string }
+}
 
 let cache: Catalog | null = null
 let pending: Promise<Catalog> | null = null

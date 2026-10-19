@@ -37,6 +37,9 @@ EDITABLE: dict[str, tuple[type, bool]] = {
     "m365_admin_client_id": (str, False),
     "m365_admin_client_secret": (str, True),
     "product_domains": (str, False),
+    "analytics_ga4_id": (str, False),
+    "analytics_plausible_domain": (str, False),
+    "analytics_plausible_src": (str, False),
 }
 PAYPAL_MODES = ("sandbox", "live", "mock")
 
