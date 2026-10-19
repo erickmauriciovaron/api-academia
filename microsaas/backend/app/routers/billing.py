@@ -92,6 +92,52 @@ def _find_sub_by_paypal(db: Session, pp_id: str | None, custom_id: str | None) -
     return None
 
 
+def _record_payment(db: Session, sub: Subscription | None, ref: str, amount: dict, raw: dict, status: str = "completed") -> bool:
+    """Registra un cobro una sola vez (el id es el mismo en webhook y en la API de transacciones)."""
+    if not ref or db.scalar(select(Payment).where(Payment.provider_ref == ref)):
+        return False
+    db.add(
+        Payment(
+            tenant_id=sub.tenant_id if sub else None,
+            subscription_id=sub.id if sub else None,
+            product=sub.product if sub else None,
+            provider_ref=ref,
+            amount=Decimal(str(amount.get("total") or amount.get("value") or "0")),
+            currency=amount.get("currency") or amount.get("currency_code") or "USD",
+            status=status,
+            raw=raw,
+        )
+    )
+    return True
+
+
+def sync_from_paypal(db: Session, sub: Subscription) -> int:
+    """Actualiza estado, periodo y cobros de una suscripción consultando la API de PayPal.
+
+    No depende de los webhooks: cubre eventos demorados o perdidos.
+    """
+    if not sub.paypal_subscription_id:
+        return 0
+    apply_paypal_state(db, sub, paypal.get_subscription(sub.paypal_subscription_id))
+    start = (sub.created_at if sub.created_at.tzinfo else sub.created_at.replace(tzinfo=timezone.utc)) - timedelta(days=1)
+    end = datetime.now(timezone.utc) + timedelta(days=1)
+    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    added = 0
+    for t in paypal.list_transactions(sub.paypal_subscription_id, start.strftime(fmt), end.strftime(fmt)):
+        status = {"COMPLETED": "completed", "REFUNDED": "refunded", "PARTIALLY_REFUNDED": "refunded"}.get(t.get("status", ""))
+        if not status:
+            continue
+        gross = (t.get("amount_with_breakdown") or {}).get("gross_amount") or {}
+        if _record_payment(db, sub, t.get("id"), gross, t, status):
+            added += 1
+        else:
+            pay = db.scalar(select(Payment).where(Payment.provider_ref == t.get("id")))
+            if pay and pay.status != status:
+                pay.status = status
+    db.commit()
+    return added
+
+
 @router.get("/subscriptions")
 def my_subscriptions(user: User = Depends(get_current_user)):
     return [serialize(s) for s in user.tenant.subscriptions]
@@ -164,6 +210,10 @@ def confirm(data: ConfirmIn, user: User = Depends(get_current_user), db: Session
         raise HTTPException(403, "La suscripción de PayPal no corresponde a esta cuenta")
     apply_paypal_state(db, sub, info)
     db.commit()
+    try:
+        sync_from_paypal(db, sub)
+    except paypal.PayPalError as e:
+        log.warning("No se pudieron leer los cobros de %s: %s", sub.paypal_subscription_id, e)
     return serialize(sub)
 
 
@@ -211,20 +261,7 @@ async def paypal_webhook(request: Request, db: Session = Depends(get_db)):
     elif etype == "PAYMENT.SALE.COMPLETED":
         pp_id = res.get("billing_agreement_id")
         sub = _find_sub_by_paypal(db, pp_id, res.get("custom"))
-        if not db.scalar(select(Payment).where(Payment.provider_ref == res.get("id"))):
-            amount = res.get("amount") or {}
-            db.add(
-                Payment(
-                    tenant_id=sub.tenant_id if sub else None,
-                    subscription_id=sub.id if sub else None,
-                    product=sub.product if sub else None,
-                    provider_ref=res.get("id"),
-                    amount=Decimal(str(amount.get("total", "0"))),
-                    currency=amount.get("currency", "USD"),
-                    status="completed",
-                    raw=res,
-                )
-            )
+        _record_payment(db, sub, res.get("id"), res.get("amount") or {}, res)
         if sub and pp_id:
             try:
                 apply_paypal_state(db, sub, paypal.get_subscription(pp_id))

@@ -165,3 +165,9 @@ def ensure_webhook(url: str) -> str:
         if wh.get("url") == url:
             return wh["id"]
     return create_webhook(url)
+
+
+def list_transactions(subscription_id: str, start: str, end: str) -> list[dict]:
+    """Cobros de una suscripción entre dos fechas ISO-8601 (UTC)."""
+    data = request("GET", f"/v1/billing/subscriptions/{subscription_id}/transactions?start_time={start}&end_time={end}")
+    return data.get("transactions", [])

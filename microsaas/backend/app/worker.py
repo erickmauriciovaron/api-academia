@@ -81,8 +81,31 @@ def daily() -> None:
     trial_reminders()
 
 
+def sync_paypal() -> None:
+    """Respaldo de los webhooks: sincroniza estado y cobros de las suscripciones de PayPal."""
+    from . import paypal
+    from .routers.billing import sync_from_paypal
+
+    if not paypal.enabled():
+        return
+    db = SessionLocal()
+    try:
+        subs = db.scalars(select(Subscription).where(Subscription.paypal_subscription_id.is_not(None), Subscription.status.in_(("active", "past_due", "cancelled")))).all()
+        for sub in subs:
+            try:
+                n = sync_from_paypal(db, sub)
+                if n:
+                    log.info("PayPal: %s cobros nuevos en suscripción %s", n, sub.id)
+            except Exception:
+                db.rollback()
+                log.exception("Error sincronizando PayPal suscripción %s", sub.id)
+    finally:
+        db.close()
+
+
 def hourly() -> None:
     _run_jobs(HOURLY_JOBS)
+    sync_paypal()
 
 
 def main() -> None:
