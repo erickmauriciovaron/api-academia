@@ -29,12 +29,17 @@ def email_layout(title: str, body_html: str, cta_url: str | None = None, cta_tex
 
 
 def send_email(to: str, subject: str, html_body: str) -> bool:
+    return deliver_email(to, subject, html_body) is None
+
+
+def deliver_email(to: str, subject: str, html_body: str) -> str | None:
+    """Envía un correo. Devuelve None si salió bien o el motivo del error."""
     s = get_settings()
     if not to:
-        return False
+        return "Sin destinatario"
     if not s.smtp_host:
         log.info("EMAIL (sin SMTP) to=%s subject=%s", to, subject)
-        return True
+        return None
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = s.smtp_from
@@ -48,10 +53,23 @@ def send_email(to: str, subject: str, html_body: str) -> bool:
             if s.smtp_user:
                 smtp.login(s.smtp_user, s.smtp_password)
             smtp.send_message(msg)
-        return True
+        return None
+    except smtplib.SMTPAuthenticationError as e:
+        reason = f"Usuario o contraseña SMTP incorrectos ({e.smtp_code})"
+    except smtplib.SMTPSenderRefused as e:
+        reason = f"El servidor rechazó el remitente {s.smtp_from!r}: {_smtp_text(e.smtp_error)}"
+    except smtplib.SMTPRecipientsRefused as e:
+        reason = f"Destinatario rechazado: {e.recipients}"
+    except smtplib.SMTPResponseException as e:
+        reason = f"El servidor SMTP respondió {e.smtp_code}: {_smtp_text(e.smtp_error)}"
     except (smtplib.SMTPException, OSError) as e:
-        log.error("Error enviando correo a %s: %s", to, e)
-        return False
+        reason = f"No se pudo conectar con {s.smtp_host}:{s.smtp_port}: {e}"
+    log.error("Error enviando correo a %s: %s", to, reason)
+    return reason
+
+
+def _smtp_text(raw) -> str:
+    return (raw.decode(errors="replace") if isinstance(raw, bytes) else str(raw))[:300]
 
 
 def send_whatsapp(phone: str, text: str) -> bool:

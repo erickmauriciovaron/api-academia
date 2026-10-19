@@ -73,3 +73,34 @@ def test_paypal_setup_from_panel(client, admin_headers, monkeypatch):
 def test_email_test_requires_smtp(client, admin_headers, monkeypatch):
     monkeypatch.setattr(get_settings(), "smtp_host", "")
     assert client.post("/api/admin/integrations/email/test", json={"to": "a@b.co"}, headers=admin_headers).status_code == 400
+
+
+def test_email_test_reports_smtp_reason(client, admin_headers, monkeypatch):
+    import smtplib
+
+    class FakeSMTP:
+        def __init__(self, *a, **k):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def starttls(self):
+            pass
+
+        def login(self, u, p):
+            pass
+
+        def send_message(self, msg):
+            raise smtplib.SMTPSenderRefused(550, b"Sender not valid", msg["From"])
+
+    import app.notify as notify
+
+    monkeypatch.setattr(notify.smtplib, "SMTP", FakeSMTP)
+    monkeypatch.setattr(get_settings(), "smtp_host", "smtp.x.com")
+    monkeypatch.setattr(get_settings(), "smtp_from", "MicroSuite <no-reply@tudominio.com>")
+    r = client.post("/api/admin/integrations/email/test", json={"to": "a@b.co"}, headers=admin_headers)
+    assert r.status_code == 502 and "remitente" in r.json()["detail"] and "Sender not valid" in r.json()["detail"]

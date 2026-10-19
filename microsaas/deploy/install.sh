@@ -65,6 +65,7 @@ if [ ! -f .env ]; then
   setenv SECRET_KEY "$(rand 48)"
   setenv POSTGRES_PASSWORD "$(rand 24)"
   setenv PAYPAL_MODE sandbox
+  setenv SMTP_FROM "MicroSuite <no-reply@$DOMAIN>"
   chmod 600 .env
 fi
 setenv APP_URL "https://$DOMAIN"
