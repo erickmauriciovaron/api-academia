@@ -164,7 +164,10 @@ def _integrations_payload() -> dict:
 
 
 @router.get("/integrations")
-def get_integrations():
+def get_integrations(db: Session = Depends(get_db)):
+    from .. import runtime_config
+
+    runtime_config.refresh(db)
     return _integrations_payload()
 
 
@@ -186,6 +189,8 @@ def paypal_setup(db: Session = Depends(get_db)):
     from ..cli import sync_paypal_plans
     from ..config import get_settings
 
+    # Con varios procesos, el que guardó puede no ser este: usa lo último guardado
+    runtime_config.refresh(db)
     if not paypal.enabled():
         raise HTTPException(400, "Guarda primero el modo (sandbox o live), el Client ID y el Secret de PayPal.")
     try:
@@ -211,10 +216,12 @@ def paypal_setup(db: Session = Depends(get_db)):
 
 
 @router.post("/integrations/email/test")
-def email_test(data: EmailTestIn):
+def email_test(data: EmailTestIn, db: Session = Depends(get_db)):
+    from .. import runtime_config
     from ..config import get_settings
     from ..notify import deliver_email, email_layout
 
+    runtime_config.refresh(db)
     if not get_settings().smtp_host:
         raise HTTPException(400, "Configura primero el servidor SMTP.")
     error = deliver_email(data.to, "Prueba de correo - MicroSuite", email_layout("¡El correo funciona!", "<p>Este es un correo de prueba enviado desde el panel de superadmin.</p>"))

@@ -65,6 +65,10 @@ def test_paypal_setup_from_panel(client, admin_headers, monkeypatch):
     d = r.json()
     assert d["plans_total"] == 60 and d["webhook_id"] == "WH-1" and d["note"] is None
     assert get_settings().paypal_webhook_id == "WH-1"
+    # Otro proceso con la configuración vieja en memoria usa lo último guardado
+    monkeypatch.setattr(get_settings(), "paypal_client_secret", "vieja")
+    assert client.post("/api/admin/integrations/paypal/setup", headers=admin_headers).status_code == 200
+    assert get_settings().paypal_client_secret == "csecret"
     # Credenciales malas -> mensaje claro
     client.put("/api/admin/integrations", json={"values": {"paypal_client_secret": "otra"}}, headers=admin_headers)
     assert client.post("/api/admin/integrations/paypal/setup", headers=admin_headers).status_code == 400
