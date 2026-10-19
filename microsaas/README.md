@@ -79,6 +79,15 @@ Con la WhatsApp Cloud API (Meta Business), crea una plantilla de tipo *utility* 
 
 ## 2. Despliegue en tu Droplet (un solo comando)
 
+**Desde el celular** (consola web de DigitalOcean), escribe solo esto:
+```bash
+git clone -b claude/micro-saas-ideas-colombia-9ggtp4 https://github.com/erickmauriciovaron/api-academia /opt/a
+bash /opt/a/microsaas/deploy/go.sh
+```
+`go.sh` detecta la IP y usa `<ip>.sslip.io` como dominio gratuito con HTTPS. Pregunta tu correo y, si escribes `BORRAR`, respalda en `/root/respaldo-*` y elimina lo instalado antes: apps, contenedores, sitios de Nginx, servicios y bases de datos. Respeta el agente de DigitalOcean y SSH. Después las credenciales (PayPal, correo, Microsoft 365) se cargan en la web, en **Superadmin → Integraciones**, donde también hay un botón que crea los planes y el webhook de PayPal.
+
+**Desde un computador** también puedes pasar todo por variables:
+
 ```bash
 # DNS: crea un registro A  suite.tudominio.com -> IP del Droplet (y espera a que propague)
 ssh root@TU_IP

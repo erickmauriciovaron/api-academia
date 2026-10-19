@@ -8,9 +8,10 @@ from app.models import Payment, PayPalPlan, Subscription
 
 
 def _setup_plan(db, product="venceya", plan="pro", interval="month", price="19.00", pid="P-TEST-PRO"):
-    if not db.query(PayPalPlan).filter_by(paypal_plan_id=pid).first():
-        db.add(PayPalPlan(mode="sandbox", product=product, plan=plan, interval=interval, price=Decimal(price), paypal_product_id="PROD-1", paypal_plan_id=pid))
-        db.commit()
+    db.query(PayPalPlan).filter_by(mode="sandbox", product=product, plan=plan, interval=interval).delete()
+    db.query(PayPalPlan).filter_by(paypal_plan_id=pid).delete()
+    db.add(PayPalPlan(mode="sandbox", product=product, plan=plan, interval=interval, price=Decimal(price), paypal_product_id="PROD-1", paypal_plan_id=pid))
+    db.commit()
 
 
 def test_paypal_checkout_confirm_and_webhooks(client, signup, monkeypatch):
@@ -78,5 +79,9 @@ def test_checkout_without_synced_plan(client, signup, monkeypatch):
     monkeypatch.setattr(s, "paypal_client_id", "id")
     monkeypatch.setattr(s, "paypal_client_secret", "secret")
     h, _ = signup("helpdesk")
+    db = SessionLocal()
+    db.query(PayPalPlan).filter_by(mode="sandbox", product="helpdesk").delete()
+    db.commit()
+    db.close()
     r = client.post("/api/billing/checkout", json={"product": "helpdesk", "plan": "business", "interval": "year"}, headers=h)
     assert r.status_code == 503

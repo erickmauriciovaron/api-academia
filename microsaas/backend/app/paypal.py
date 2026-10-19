@@ -157,3 +157,11 @@ WEBHOOK_EVENTS = [
 def create_webhook(url: str) -> str:
     data = request("POST", "/v1/notifications/webhooks", {"url": url, "event_types": [{"name": e} for e in WEBHOOK_EVENTS]})
     return data["id"]
+
+
+def ensure_webhook(url: str) -> str:
+    """Devuelve el id del webhook para `url`, creándolo si no existe."""
+    for wh in request("GET", "/v1/notifications/webhooks").get("webhooks", []):
+        if wh.get("url") == url:
+            return wh["id"]
+    return create_webhook(url)

@@ -1,12 +1,13 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .db import init_db
 from .products.registry import ROUTERS
+from . import runtime_config
 from .routers import admin, auth, billing, public
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -18,6 +19,7 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
+    runtime_config.maybe_refresh(every=0)
     yield
 
 
@@ -29,6 +31,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+
+@app.middleware("http")
+async def reload_integrations(request: Request, call_next):
+    runtime_config.maybe_refresh()
+    return await call_next(request)
+
 
 for r in (auth.router, auth.team, billing.router, public.router, admin.router, *ROUTERS):
     app.include_router(r)

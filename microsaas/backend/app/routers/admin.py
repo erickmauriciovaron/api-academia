@@ -137,3 +137,87 @@ def payments(db: Session = Depends(get_db)):
         }
         for p in rows
     ]
+
+
+# ---------- Integraciones (PayPal, correo, WhatsApp, Microsoft 365) ----------
+class IntegrationsIn(BaseModel):
+    values: dict
+
+
+class EmailTestIn(BaseModel):
+    to: str
+
+
+def _integrations_payload() -> dict:
+    from ..config import get_settings
+    from .. import runtime_config
+
+    s = get_settings()
+    return {
+        "values": runtime_config.public_view(s),
+        "app_url": s.app_url,
+        "webhook_url": f"{s.app_url}/api/billing/paypal/webhook",
+        "paypal_ready": bool(s.paypal_client_id and s.paypal_client_secret and s.paypal_mode in ("sandbox", "live")),
+        "smtp_ready": bool(s.smtp_host),
+        "m365_ready": bool(s.m365_read_client_id and s.m365_admin_client_id),
+    }
+
+
+@router.get("/integrations")
+def get_integrations():
+    return _integrations_payload()
+
+
+@router.put("/integrations")
+def put_integrations(data: IntegrationsIn, db: Session = Depends(get_db)):
+    from .. import runtime_config
+
+    try:
+        runtime_config.save(db, data.values)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _integrations_payload()
+
+
+@router.post("/integrations/paypal/setup")
+def paypal_setup(db: Session = Depends(get_db)):
+    """Verifica credenciales, crea los planes que falten y registra el webhook."""
+    from .. import paypal, runtime_config
+    from ..cli import sync_paypal_plans
+    from ..config import get_settings
+
+    if not paypal.enabled():
+        raise HTTPException(400, "Guarda primero el modo (sandbox o live), el Client ID y el Secret de PayPal.")
+    try:
+        paypal._token.update(value=None, exp=0.0)
+        paypal._access_token()
+    except paypal.PayPalError:
+        raise HTTPException(400, "PayPal rechazó las credenciales. Revisa el Client ID, el Secret y el modo (sandbox/live).")
+    try:
+        res = sync_paypal_plans(db)
+    except paypal.PayPalError as e:
+        raise HTTPException(502, f"Error creando planes en PayPal: {str(e)[:200]}")
+    s = get_settings()
+    webhook, note = None, None
+    if s.app_url.startswith("https://"):
+        try:
+            webhook = paypal.ensure_webhook(f"{s.app_url}/api/billing/paypal/webhook")
+            runtime_config.save(db, {"paypal_webhook_id": webhook})
+        except paypal.PayPalError as e:
+            note = f"No se pudo registrar el webhook: {str(e)[:160]}"
+    else:
+        note = "El webhook requiere HTTPS: configura el dominio con certificado y vuelve a ejecutar."
+    return {"plans_created": res["created"], "plans_total": res["total"], "webhook_id": webhook, "note": note, **_integrations_payload()}
+
+
+@router.post("/integrations/email/test")
+def email_test(data: EmailTestIn):
+    from ..config import get_settings
+    from ..notify import email_layout, send_email
+
+    if not get_settings().smtp_host:
+        raise HTTPException(400, "Configura primero el servidor SMTP.")
+    ok = send_email(data.to, "Prueba de correo - MicroSuite", email_layout("¡El correo funciona!", "<p>Este es un correo de prueba enviado desde el panel de superadmin.</p>"))
+    if not ok:
+        raise HTTPException(502, "El servidor SMTP rechazó el envío. Revisa host, puerto, usuario y contraseña.")
+    return {"ok": True}

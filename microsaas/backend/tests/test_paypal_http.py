@@ -17,7 +17,9 @@ class FakePayPal:
 
     def post(self, url, auth=None, data=None, timeout=None):
         assert url.startswith("https://api-m.sandbox.paypal.com/v1/oauth2/token")
-        assert auth == ("cid", "csecret") and data == {"grant_type": "client_credentials"}
+        assert data == {"grant_type": "client_credentials"}
+        if auth != ("cid", "csecret"):
+            return httpx.Response(401, json={"error": "invalid_client"}, request=httpx.Request("POST", url))
         self.token_calls += 1
         return httpx.Response(200, json={"access_token": "A21", "expires_in": 32400}, request=httpx.Request("POST", url))
 

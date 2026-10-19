@@ -7,14 +7,15 @@ import { StatusBadge } from './Account'
 
 export default function Admin() {
   useLang()
-  const [tab, setTab] = useState<'resumen' | 'clientes' | 'pagos' | 'calendario'>('resumen')
+  const [tab, setTab] = useState<'resumen' | 'clientes' | 'pagos' | 'integraciones' | 'calendario'>('resumen')
   return (
     <div>
       <PageHead title="Superadmin" subtitle="Ingresos, clientes y suscripciones de todas las apps." />
-      <Tabs value={tab} onChange={setTab} items={[['resumen', 'Resumen'], ['clientes', 'Clientes'], ['pagos', 'Pagos'], ['calendario', 'Calendario DIAN']]} />
+      <Tabs value={tab} onChange={setTab} items={[['resumen', 'Resumen'], ['clientes', 'Clientes'], ['pagos', 'Pagos'], ['integraciones', 'Integraciones'], ['calendario', 'Calendario DIAN']]} />
       {tab === 'resumen' && <Summary />}
       {tab === 'clientes' && <Tenants />}
       {tab === 'pagos' && <Payments />}
+      {tab === 'integraciones' && <Integrations />}
       {tab === 'calendario' && <Calendar />}
     </div>
   )
@@ -221,6 +222,174 @@ function Calendar() {
           </table>
         </div>
       )}
+    </div>
+  )
+}
+
+type Field = [key: string, label: string, kind?: 'secret' | 'select' | 'check', options?: string[], hint?: string]
+
+const SECTIONS: { title: string; help: string; fields: Field[] }[] = [
+  {
+    title: 'PayPal (cobros)',
+    help: 'developer.paypal.com → Apps & Credentials. Usa primero "sandbox" para probar y luego "live" con las credenciales Live para cobrar de verdad.',
+    fields: [
+      ['paypal_mode', 'Modo', 'select', ['sandbox', 'live']],
+      ['paypal_client_id', 'Client ID'],
+      ['paypal_client_secret', 'Secret', 'secret'],
+      ['paypal_brand_name', 'Nombre que ve el cliente en PayPal'],
+    ],
+  },
+  {
+    title: 'Correo (SMTP)',
+    help: 'Necesario para alertas, recordatorios, invitaciones y recuperación de contraseña. Ej.: Brevo (smtp-relay.brevo.com, puerto 587).',
+    fields: [
+      ['smtp_host', 'Servidor SMTP'],
+      ['smtp_port', 'Puerto'],
+      ['smtp_user', 'Usuario'],
+      ['smtp_password', 'Contraseña', 'secret'],
+      ['smtp_from', 'Remitente', undefined, undefined, 'MicroSuite <no-reply@tudominio.com>'],
+      ['smtp_tls', 'Usar STARTTLS', 'check'],
+    ],
+  },
+  {
+    title: 'Microsoft 365 (LicenciaLens y OffboardKit)',
+    help: 'Apps multi-tenant registradas en Entra ID (ver README §1.3).',
+    fields: [
+      ['m365_read_client_id', 'App de lectura: Client ID'],
+      ['m365_read_client_secret', 'App de lectura: Secret', 'secret'],
+      ['m365_admin_client_id', 'App de administración: Client ID'],
+      ['m365_admin_client_secret', 'App de administración: Secret', 'secret'],
+    ],
+  },
+  {
+    title: 'WhatsApp Cloud API (opcional)',
+    help: 'Plantilla aprobada con un parámetro {{1}}.',
+    fields: [
+      ['whatsapp_token', 'Token', 'secret'],
+      ['whatsapp_phone_id', 'Phone number ID'],
+      ['whatsapp_template', 'Plantilla'],
+      ['whatsapp_lang', 'Idioma de la plantilla'],
+    ],
+  },
+  {
+    title: 'Dominios propios por app (opcional)',
+    help: 'Ej.: licencialens.com=licencialens,venceya.app=venceya (el DNS y el certificado se configuran en el servidor).',
+    fields: [['product_domains', 'Dominios']],
+  },
+]
+
+function Integrations() {
+  const data = useAsync(() => api<any>('/api/admin/integrations'), [])
+  const [values, setValues] = useState<Record<string, any>>({})
+  const [result, setResult] = useState<any>(null)
+  const [testTo, setTestTo] = useState('')
+  const { busy, run } = useAction()
+  const v = { ...(data.data?.values || {}), ...values }
+  const set = (k: string, val: any) => setValues((s) => ({ ...s, [k]: val }))
+  const save = async (keys: string[]) => {
+    const body: Record<string, any> = {}
+    keys.forEach((k) => k in values && (body[k] = values[k]))
+    const r = await run(() => api('/api/admin/integrations', { method: 'PUT', body: { values: body } }), 'Guardado')
+    if (r) {
+      data.setData(r)
+      setValues({})
+    }
+    return r
+  }
+  if (!data.data) return data.error ? <ErrorBox error={data.error} /> : <Spinner />
+  const d = data.data
+  return (
+    <div className="stack" style={{ maxWidth: 760 }}>
+      <div className="row">
+        <Badge tone={d.paypal_ready ? 'ok' : 'warn'}>PayPal {d.paypal_ready ? 'configurado' : 'pendiente'}</Badge>
+        <Badge tone={d.smtp_ready ? 'ok' : 'warn'}>Correo {d.smtp_ready ? 'configurado' : 'pendiente'}</Badge>
+        <Badge tone={d.m365_ready ? 'ok' : 'warn'}>Microsoft 365 {d.m365_ready ? 'configurado' : 'pendiente'}</Badge>
+      </div>
+      {SECTIONS.map((sec) => (
+        <form
+          key={sec.title}
+          className="card stack"
+          onSubmit={(e) => {
+            e.preventDefault()
+            save(sec.fields.map((f) => f[0]))
+          }}
+        >
+          <h3 style={{ margin: 0 }}>{sec.title}</h3>
+          <p className="muted small" style={{ margin: 0 }}>
+            {sec.help}
+          </p>
+          {sec.fields.map(([key, label, kind, options, hint]) =>
+            kind === 'check' ? (
+              <label key={key} className="check">
+                <input type="checkbox" checked={!!v[key]} onChange={(e) => set(key, e.target.checked)} /> {label}
+              </label>
+            ) : (
+              <label key={key} className="field">
+                {label}
+                {kind === 'select' ? (
+                  <select value={v[key] || ''} onChange={(e) => set(key, e.target.value)}>
+                    {options!.map((o) => (
+                      <option key={o}>{o}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    value={v[key] ?? ''}
+                    placeholder={hint}
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    onFocus={(e) => kind === 'secret' && String(e.target.value).startsWith('••••') && set(key, '')}
+                    onChange={(e) => set(key, e.target.value)}
+                  />
+                )}
+              </label>
+            ),
+          )}
+          <div className="row">
+            <button className="btn primary" disabled={busy}>
+              Guardar
+            </button>
+            {sec.title.startsWith('PayPal') && (
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={async () => {
+                  if (Object.keys(values).some((k) => k.startsWith('paypal_')) && !(await save(sec.fields.map((f) => f[0])))) return
+                  const r = await run(() => api<any>('/api/admin/integrations/paypal/setup', { method: 'POST' }), 'PayPal configurado')
+                  if (r) {
+                    setResult(r)
+                    data.setData(r)
+                  }
+                }}
+              >
+                {busy ? 'Configurando…' : 'Configurar planes y webhook'}
+              </button>
+            )}
+          </div>
+          {sec.title.startsWith('PayPal') && result && (
+            <div className={`alert ${result.note ? 'warn' : 'ok'} small`}>
+              Planes en PayPal: {result.plans_total} ({result.plans_created} nuevos). Webhook: {result.webhook_id || 'no registrado'}.
+              {result.note && <div>{result.note}</div>}
+            </div>
+          )}
+          {sec.title.startsWith('PayPal') && <p className="muted small" style={{ margin: 0 }}>URL del webhook: <code>{d.webhook_url}</code></p>}
+          {sec.title.startsWith('Microsoft') && (
+            <p className="muted small" style={{ margin: 0 }}>
+              Redirect URI para registrar en Entra ID: <code>{d.app_url}/app/m365/callback</code>
+            </p>
+          )}
+          {sec.title.startsWith('Correo') && (
+            <div className="row">
+              <input type="email" placeholder="Enviar correo de prueba a…" value={testTo} onChange={(e) => setTestTo(e.target.value)} style={{ maxWidth: 280 }} />
+              <button type="button" className="btn" disabled={busy || !testTo} onClick={() => run(() => api('/api/admin/integrations/email/test', { body: { to: testTo } }), 'Correo enviado')}>
+                Probar
+              </button>
+            </div>
+          )}
+        </form>
+      ))}
     </div>
   )
 }

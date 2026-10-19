@@ -32,11 +32,10 @@ def create_superadmin(email: str, name: str, password: str) -> None:
     print(f"Superadmin listo: {email}")
 
 
-def paypal_sync() -> None:
-    if not paypal.enabled():
-        sys.exit("Configura PAYPAL_MODE=sandbox|live, PAYPAL_CLIENT_ID y PAYPAL_CLIENT_SECRET")
+def sync_paypal_plans(db) -> dict:
+    """Crea en PayPal los productos y planes que falten. Idempotente."""
     mode = get_settings().paypal_mode
-    db = SessionLocal()
+    created, lines = 0, []
     for slug, p in catalog.PRODUCTS.items():
         existing = db.scalars(select(PayPalPlan).where(PayPalPlan.mode == mode, PayPalPlan.product == slug)).all()
         product_id = existing[0].paypal_product_id if existing else paypal.create_product(p["name"], p["tagline"]["en"])
@@ -49,15 +48,26 @@ def paypal_sync() -> None:
                 plan_id = paypal.create_plan(product_id, f"{p['name']} {plan['name']} ({label})", f"{price:.2f}", interval)
                 db.add(PayPalPlan(mode=mode, product=slug, plan=plan["code"], interval=interval, price=price, paypal_product_id=product_id, paypal_plan_id=plan_id))
                 db.commit()
-                print(f"  {slug}/{plan['code']}/{interval} USD {price} -> {plan_id}")
-    print("Planes de PayPal sincronizados.")
+                created += 1
+                lines.append(f"  {slug}/{plan['code']}/{interval} USD {price} -> {plan_id}")
+    total = len(db.scalars(select(PayPalPlan).where(PayPalPlan.mode == mode)).all())
+    return {"created": created, "total": total, "lines": lines}
+
+
+def paypal_sync() -> None:
+    if not paypal.enabled():
+        sys.exit("Configura PAYPAL_MODE=sandbox|live, PAYPAL_CLIENT_ID y PAYPAL_CLIENT_SECRET")
+    db = SessionLocal()
+    res = sync_paypal_plans(db)
+    print("\n".join(res["lines"]))
+    print(f"Planes de PayPal sincronizados ({res['total']} en total, {res['created']} nuevos).")
 
 
 def paypal_webhook(url: str) -> None:
     if not paypal.enabled():
         sys.exit("PayPal no configurado")
-    wid = paypal.create_webhook(url)
-    print(f"Webhook creado. Agrega a .env:  PAYPAL_WEBHOOK_ID={wid}")
+    wid = paypal.ensure_webhook(url)
+    print(f"Webhook listo. Agrega a .env:  PAYPAL_WEBHOOK_ID={wid}")
 
 
 def import_calendar(path: str) -> None:

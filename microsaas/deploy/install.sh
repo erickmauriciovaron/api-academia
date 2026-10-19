@@ -24,15 +24,16 @@ EXTRA_DOMAINS="${EXTRA_DOMAINS:-}"
 # ---------- 1. Paquetes ----------
 log "Instalando paquetes (docker, nginx, certbot)"
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
+APT="apt-get -o DPkg::Lock::Timeout=300"
+$APT update -qq
 if ! command -v docker >/dev/null 2>&1; then
-  apt-get install -y -qq docker.io >/dev/null || (curl -fsSL https://get.docker.com | sh)
+  $APT install -y -qq docker.io >/dev/null || (curl -fsSL https://get.docker.com | sh)
 fi
 if ! docker compose version >/dev/null 2>&1; then
-  apt-get install -y -qq docker-compose-v2 >/dev/null 2>&1 || apt-get install -y -qq docker-compose-plugin >/dev/null
+  $APT install -y -qq docker-compose-v2 >/dev/null 2>&1 || $APT install -y -qq docker-compose-plugin >/dev/null
 fi
-command -v nginx >/dev/null 2>&1 || apt-get install -y -qq nginx >/dev/null
-command -v certbot >/dev/null 2>&1 || apt-get install -y -qq certbot python3-certbot-nginx >/dev/null
+command -v nginx >/dev/null 2>&1 || $APT install -y -qq nginx >/dev/null
+command -v certbot >/dev/null 2>&1 || $APT install -y -qq certbot python3-certbot-nginx >/dev/null
 systemctl enable --now docker nginx >/dev/null 2>&1 || true
 
 # ---------- 2. Swap (Droplets de 1-2 GB) ----------

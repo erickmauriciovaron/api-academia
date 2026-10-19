@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from apscheduler.schedulers.blocking import BlockingScheduler
 from sqlalchemy import select
 
+from . import runtime_config
 from .config import get_settings
 from .db import SessionLocal, init_db
 from .models import Subscription, Tenant
@@ -22,6 +23,7 @@ log = logging.getLogger("worker")
 
 
 def _run_jobs(jobs: dict) -> None:
+    runtime_config.maybe_refresh(every=0)
     db = SessionLocal()
     try:
         subs = db.scalars(select(Subscription).where(Subscription.product.in_(list(jobs.keys())))).all()
