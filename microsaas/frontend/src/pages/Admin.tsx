@@ -280,6 +280,14 @@ const SECTIONS: { title: string; help: string; fields: Field[] }[] = [
     ],
   },
   {
+    title: 'Píxeles de publicidad (opcional)',
+    help: 'Para medir qué anuncios traen registros y ventas. Meta: business.facebook.com → Administrador de eventos → Conectar orígenes de datos → Web → ID del píxel (solo números). LinkedIn: Campaign Manager → Analizar → Insight Tag → Partner ID. Google Ads no necesita píxel: importa las conversiones desde Google Analytics.',
+    fields: [
+      ['ads_meta_pixel_id', 'ID del píxel de Meta', undefined, undefined, '123456789012345'],
+      ['ads_linkedin_partner_id', 'Partner ID de LinkedIn', undefined, undefined, '1234567'],
+    ],
+  },
+  {
     title: 'Dominios propios por app (opcional)',
     help: 'Ej.: licencialens.com=licencialens,venceya.app=venceya (el DNS y el certificado se configuran en el servidor).',
     fields: [['product_domains', 'Dominios']],

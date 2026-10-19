@@ -12,7 +12,8 @@ def test_daily_jobs_and_trial_reminders(client, signup):
     client.post("/api/venceya/documents", json={"entity_id": e["id"], "doc_type": "SOAT", "expires_on": (date.today() + timedelta(days=1)).isoformat()}, headers=h)
     db = SessionLocal()
     sub = db.query(Subscription).filter_by(tenant_id=tid, product="venceya").one()
-    sub.trial_ends_at = datetime.now(timezone.utc) + timedelta(days=3, hours=1)
+    # Mediodía UTC: el resultado no depende de la hora a la que corre la prueba
+    sub.trial_ends_at = datetime.combine(datetime.now(timezone.utc).date() + timedelta(days=3), datetime.min.time(), timezone.utc) + timedelta(hours=12)
     db.commit()
 
     worker.daily()

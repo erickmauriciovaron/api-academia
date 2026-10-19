@@ -229,6 +229,7 @@ export function Legal({ kind }: { kind: 'terminos' | 'privacidad' }) {
           <>
             <h1>{tr('Política de privacidad', 'Privacy policy')}</h1>
             <p>{tr('Tratamos los datos de tu cuenta (nombre, correo, empresa) para prestar el servicio y facturar. Los datos que cargas en cada app te pertenecen; no los vendemos ni compartimos con terceros, salvo proveedores necesarios para operar (hosting, correo y PayPal para pagos).', 'We process your account data (name, email, company) to provide the service and bill you. The data you upload belongs to you; we do not sell or share it with third parties except providers needed to operate (hosting, email and PayPal for payments).')}</p>
+            <p>{tr('En las páginas públicas usamos cookies de analítica y de publicidad (Google Analytics y, si están activos, los píxeles de Meta y LinkedIn) para medir visitas y saber qué anuncios funcionan. No se usan en el contenido de tus apps. Puedes bloquearlas desde la configuración de tu navegador.', 'On public pages we use analytics and advertising cookies (Google Analytics and, when enabled, the Meta and LinkedIn pixels) to measure visits and which ads work. They are not used on your app data. You can block them in your browser settings.')}</p>
             <p>{tr('Puedes solicitar la consulta, corrección o eliminación de tus datos escribiendo al correo de soporte.', 'You can request access, correction or deletion of your data by writing to the support email.')}</p>
           </>
         )}

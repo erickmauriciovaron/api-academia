@@ -27,5 +27,7 @@ def test_sitemap_and_robots(client):
 
 def test_catalog_exposes_analytics(client, monkeypatch):
     monkeypatch.setattr(get_settings(), "analytics_ga4_id", "G-TEST123")
+    monkeypatch.setattr(get_settings(), "ads_meta_pixel_id", "123456789012345")
+    monkeypatch.setattr(get_settings(), "ads_linkedin_partner_id", "7654321")
     a = client.get("/api/public/catalog").json()["analytics"]
-    assert a["ga4_id"] == "G-TEST123"
+    assert (a["ga4_id"], a["meta_pixel_id"], a["linkedin_partner_id"]) == ("G-TEST123", "123456789012345", "7654321")

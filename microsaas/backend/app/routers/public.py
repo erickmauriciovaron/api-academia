@@ -21,6 +21,8 @@ def get_catalog():
             "ga4_id": s.analytics_ga4_id,
             "plausible_domain": s.analytics_plausible_domain,
             "plausible_src": s.analytics_plausible_src,
+            "meta_pixel_id": s.ads_meta_pixel_id,
+            "linkedin_partner_id": s.ads_linkedin_partner_id,
         },
     }
 

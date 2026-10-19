@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     analytics_ga4_id: str = ""
     analytics_plausible_domain: str = ""
     analytics_plausible_src: str = "https://plausible.io/js/script.js"
+    # Píxeles de publicidad (opcional): Meta (Facebook/Instagram) y LinkedIn Insight Tag
+    ads_meta_pixel_id: str = ""
+    ads_linkedin_partner_id: str = ""
 
     # Dominios propios por producto: "licencialens.com=licencialens,venceya.app=venceya"
     product_domains: str = ""

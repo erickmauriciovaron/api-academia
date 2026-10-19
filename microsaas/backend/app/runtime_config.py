@@ -40,6 +40,8 @@ EDITABLE: dict[str, tuple[type, bool]] = {
     "analytics_ga4_id": (str, False),
     "analytics_plausible_domain": (str, False),
     "analytics_plausible_src": (str, False),
+    "ads_meta_pixel_id": (str, False),
+    "ads_linkedin_partner_id": (str, False),
 }
 PAYPAL_MODES = ("sandbox", "live", "mock")
 
