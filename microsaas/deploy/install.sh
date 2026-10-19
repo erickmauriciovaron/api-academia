@@ -127,7 +127,7 @@ fi
 
 # ---------- 8. Backups ----------
 CRON="15 3 * * * $DIR/deploy/backup.sh >> /var/log/microsuite-backup.log 2>&1"
-( crontab -l 2>/dev/null | grep -v 'microsuite.*backup.sh\|deploy/backup.sh'; echo "$CRON" ) | crontab -
+{ crontab -l 2>/dev/null | grep -v 'deploy/backup.sh' || true; echo "$CRON"; } | crontab -
 
 # ---------- Resumen ----------
 log "Listo"
