@@ -121,13 +121,21 @@ def execute(g: m365.GraphClient, user: dict, steps: list[str], auto_reply_text: 
 
         def remove_licenses():
             lic = g.get(f"/users/{uid}?$select=assignedLicenses,licenseAssignmentStates")
-            direct = {s["skuId"] for s in lic.get("licenseAssignmentStates", []) if not s.get("assignedByGroup")}
-            ids = [x["skuId"] for x in lic.get("assignedLicenses", []) if not direct or x["skuId"] in direct]
+            assigned = [x["skuId"] for x in lic.get("assignedLicenses", [])]
+            states = lic.get("licenseAssignmentStates")
+            if states is None:
+                ids = assigned
+            else:
+                # Las licencias heredadas de un grupo no se pueden quitar al usuario directamente.
+                direct = {s["skuId"] for s in states if not s.get("assignedByGroup")}
+                ids = [i for i in assigned if i in direct]
+            by_group = [sku_names.get(i, i) for i in assigned if i not in ids]
+            note = f"; heredadas de grupo (se liberan al quitarlo del grupo): {', '.join(by_group)}" if by_group else ""
             if not ids:
-                return "Sin licencias asignadas directamente"
+                return "Sin licencias asignadas directamente" + note
             g.request("POST", f"/users/{uid}/assignLicense", {"addLicenses": [], "removeLicenses": ids})
             removed.extend(sku_names.get(i, i) for i in ids)
-            return f"Quitadas: {', '.join(removed)}"
+            return f"Quitadas: {', '.join(removed)}" + note
 
         record("remove_licenses", remove_licenses)
     return results, removed

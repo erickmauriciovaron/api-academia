@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Copia de seguridad diaria de PostgreSQL. Cron sugerido (root):
-#   15 3 * * * /opt/microsuite/deploy/backup.sh >> /var/log/microsuite-backup.log 2>&1
+#   15 3 * * * /opt/api-academia/microsaas/deploy/backup.sh >> /var/log/microsuite-backup.log 2>&1
 set -euo pipefail
 cd "$(dirname "$0")/.."
-set -a; source .env; set +a
+envval() { grep -E "^$1=" .env | tail -1 | cut -d= -f2-; }
+POSTGRES_USER="$(envval POSTGRES_USER)"
+POSTGRES_DB="$(envval POSTGRES_DB)"
 DEST=${BACKUP_DIR:-/var/backups/microsuite}
 mkdir -p "$DEST"
 FILE="$DEST/suite-$(date +%F).sql.gz"

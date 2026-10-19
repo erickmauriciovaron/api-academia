@@ -89,3 +89,12 @@ def test_csv_import(client, signup):
     assert r.status_code == 200, r.text
     assert r.json()["created"] == 2
     assert len(r.json()["errors"]) == 1
+
+
+def test_mock_payments_blocked_on_https(client, signup, monkeypatch):
+    from app.config import get_settings
+
+    h, _ = signup("venceya")
+    monkeypatch.setattr(get_settings(), "app_url", "https://suite.ejemplo.com")
+    r = client.post("/api/billing/checkout", json={"product": "venceya", "plan": "starter"}, headers=h)
+    assert r.status_code == 503

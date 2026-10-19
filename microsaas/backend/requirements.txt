@@ -12,3 +12,4 @@ APScheduler==3.11.3
 holidays==0.106
 python-multipart==0.0.32
 pytest==9.1.1
+alembic==1.20.0

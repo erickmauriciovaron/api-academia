@@ -32,9 +32,10 @@ microsaas/
 │   │   ├── paypal.py         API de suscripciones de PayPal
 │   │   ├── worker.py         Alertas y recordatorios programados (7:00 a. m. Bogotá)
 │   │   └── cli.py            Superadmin, sincronizar PayPal, webhook, calendario DIAN
-│   └── tests/                22 pruebas (pytest), pasan en SQLite y PostgreSQL
+│   ├── migrations/           Migraciones Alembic (se aplican solas al arrancar)
+│   └── tests/                35 pruebas (pytest): SQLite y PostgreSQL, Graph y PayPal simulados por HTTP
 ├── frontend/           React 18 + TypeScript + Vite (SPA bilingüe ES/EN)
-├── deploy/             Nginx del Droplet, backup diario, formato CSV del calendario
+├── deploy/             install.sh (un comando), update.sh, backup.sh, restore.sh, Nginx del host
 ├── e2e/                Prueba de humo con Playwright (navegador real)
 └── docker-compose.yml  db + api + worker + web (~1,1 GB de RAM como máximo)
 ```
@@ -76,40 +77,48 @@ Con la WhatsApp Cloud API (Meta Business), crea una plantilla de tipo *utility* 
 
 ---
 
-## 2. Despliegue en tu Droplet (Docker + Nginx + HTTPS)
+## 2. Despliegue en tu Droplet (un solo comando)
 
 ```bash
-# DNS: crea un registro A  suite.tudominio.com -> IP del Droplet
+# DNS: crea un registro A  suite.tudominio.com -> IP del Droplet (y espera a que propague)
 ssh root@TU_IP
-apt-get update && apt-get install -y docker.io docker-compose-v2 git certbot python3-certbot-nginx
-git clone -b claude/micro-saas-ideas-colombia-9ggtp4 https://github.com/erickmauriciovaron/api-academia.git /opt/src && cp -r /opt/src/microsaas /opt/microsuite
-cd /opt/microsuite
-cp .env.example .env && nano .env        # completa APP_URL, SECRET_KEY, POSTGRES_PASSWORD, SMTP, PayPal...
-docker compose up -d --build
-docker compose ps                        # db, api, worker, web en "Up (healthy)"
+apt-get update && apt-get install -y git
+git clone -b claude/micro-saas-ideas-colombia-9ggtp4 https://github.com/erickmauriciovaron/api-academia.git /opt/api-academia
+cd /opt/api-academia/microsaas
 
-# Nginx del host (convive con HelpDesk TI, GestorLineas y AssetTrack)
-cp deploy/nginx-host.conf /etc/nginx/sites-available/microsuite
-sed -i 's/suite.tudominio.com/TU-DOMINIO/g' /etc/nginx/sites-available/microsuite
-ln -s /etc/nginx/sites-available/microsuite /etc/nginx/sites-enabled/
-nginx -t && systemctl reload nginx
-certbot --nginx -d TU-DOMINIO            # HTTPS gratis y con renovación automática
-
-# Tu usuario superadmin (panel /app/admin)
-docker compose exec api python -m app.cli create-superadmin tu@correo.com "Tu Nombre" "UnaClaveSegura"
-
-# Backup diario de la base de datos (3:15 a. m.)
-(crontab -l; echo "15 3 * * * /opt/microsuite/deploy/backup.sh >> /var/log/microsuite-backup.log 2>&1") | crontab -
+DOMAIN=suite.tudominio.com ADMIN_EMAIL=tu@correo.com \
+PAYPAL_MODE=sandbox PAYPAL_CLIENT_ID=xxx PAYPAL_CLIENT_SECRET=yyy \
+SMTP_HOST=smtp-relay.brevo.com SMTP_USER=xxx SMTP_PASSWORD=yyy SMTP_FROM="MicroSuite <no-reply@tudominio.com>" \
+bash deploy/install.sh
 ```
 
-> Si el puerto 8080 ya está ocupado por otra app, cambia `WEB_PORT` en `.env` y en `deploy/nginx-host.conf`.
-> Si tienes poca RAM libre, agrega 2 GB de swap: `fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile`.
+`deploy/install.sh` hace todo esto y se puede volver a ejecutar sin riesgo:
+1. Instala Docker, Nginx y Certbot si faltan, y crea 2 GB de swap si el servidor tiene poca RAM.
+2. Genera `.env` con claves aleatorias (`SECRET_KEY` y contraseña de PostgreSQL) y guarda las variables que le pases.
+3. Busca un puerto local libre si el 8080 ya lo usa otra de tus apps (HelpDesk TI, GestorLineas, AssetTrack).
+4. Construye y levanta los 4 contenedores. Las migraciones de base de datos se aplican solas al arrancar.
+5. Configura Nginx y el certificado HTTPS de Let's Encrypt, con renovación automática.
+6. Crea tu superadmin y guarda la clave en `/opt/api-academia/microsaas/.superadmin`.
+7. Si pasaste credenciales de PayPal, crea los 60 planes y el webhook y guarda el `PAYPAL_WEBHOOK_ID`.
+8. Programa el backup diario de la base de datos (3:15 a. m., conserva 14 días).
+
+Al terminar muestra lo que falte configurar. Las credenciales de Microsoft 365 también se pasan como variables (`M365_READ_CLIENT_ID`, etc.). Si el DNS aún no apunta al servidor, usa `SKIP_CERTBOT=1` y vuelve a ejecutar el script después.
+
+Mantenimiento:
+```bash
+sudo bash deploy/update.sh                                          # backup + actualizar a la última versión + migraciones
+sudo bash deploy/backup.sh                                          # backup manual
+sudo bash deploy/restore.sh /var/backups/microsuite/suite-AAAA-MM-DD.sql.gz   # restaurar (pide confirmación)
+docker compose logs -f api worker                                   # ver logs
+```
+
+> Seguridad: el modo `PAYPAL_MODE=mock` (planes gratis para pruebas) queda bloqueado cuando `APP_URL` usa HTTPS, y el instalador nunca lo deja activo.
 
 ### 2.1 Activar cobros reales con PayPal
 ```bash
 # 1) Pruebas en sandbox: PAYPAL_MODE=sandbox + credenciales sandbox en .env
 docker compose up -d
-docker compose exec api python -m app.cli paypal-sync        # crea los 60 planes (10 apps x 3 planes x mensual/anual)
+docker compose exec api python -m app.cli paypal-sync        # crea los 60 planes (10 apps x 3 planes x mensual/anual); install.sh ya lo hace
 docker compose exec api python -m app.cli paypal-webhook https://TU-DOMINIO/api/billing/paypal/webhook
 #    -> copia el PAYPAL_WEBHOOK_ID que imprime en .env y reinicia: docker compose up -d
 # 2) Paga con una cuenta "personal" de sandbox y confirma que el plan queda "Activa" y el pago aparece en /app/admin.
@@ -128,7 +137,7 @@ Cada diciembre, cuando salga el decreto del calendario tributario del año sigui
 # Backend
 cd backend && python3 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt
 DATABASE_URL=sqlite:///./dev.db PAYPAL_MODE=mock uvicorn app.main:app --reload     # http://localhost:8000/api/docs
-pytest -q                                                                          # 22 pruebas
+pytest -q                                                                          # 35 pruebas
 
 # Frontend (proxy /api -> :8000)
 cd frontend && npm install && npm run dev                                          # http://localhost:5173
@@ -144,13 +153,16 @@ Con `PAYPAL_MODE=mock`, “Elegir plan” activa el plan sin cobrar, para probar
 4. Con PayPal en sandbox, compra un plan y verifica en `/app/admin` el MRR y el pago.
 5. Opcional: `cd e2e && npm i && npm run smoke` recorre las 10 apps en un navegador real (requiere `PAYPAL_MODE=mock`).
 
+6. En cada push, GitHub Actions (`.github/workflows/microsuite.yml`) ejecuta las pruebas en SQLite y PostgreSQL, verifica que las migraciones estén al día, compila el frontend y construye las imágenes Docker.
+
+Para cambiar el esquema de base de datos: modifica los modelos y ejecuta `alembic revision --autogenerate -m "descripcion"` contra una base PostgreSQL de desarrollo. El cambio se aplica solo en el siguiente despliegue.
+
 ---
 
 ## 5. Fuera de la versión 1 (a propósito)
 - Facturación electrónica DIAN de tus propias ventas: PayPal emite el recibo; como persona natural declara los ingresos con tu contador.
 - Adjuntar archivos (PDF de pólizas, soportes): se guarda el número y la fecha, no el archivo.
 - Onboarding de usuarios en M365, conversión a buzón compartido y reenvío de correo (requieren Exchange PowerShell).
-- Migraciones con Alembic: v1 crea las tablas al arrancar. Agrega Alembic antes del primer cambio de esquema con datos reales.
 - Precios en COP o pasarelas locales (Wompi, Mercado Pago): PayPal convierte la moneda del comprador.
 
 **Aviso:** los textos legales (Ley 1581, Res. 0312, calendario DIAN) son una base operativa. Valídalos con un abogado, un profesional SST o un contador antes de venderlos como cumplimiento.

@@ -20,18 +20,18 @@ PRODUCTS: dict[str, dict] = {
         "color": "#2563eb",
         "icon": "🔍",
         "market": "global",
-        "tagline": {"es": "Deja de pagar licencias de Microsoft 365 que nadie usa", "en": "Stop paying for Microsoft 365 licenses nobody uses"},
+        "tagline": {"es": "Estás pagando licencias de Microsoft 365 que nadie usa. Te decimos cuántas y cuánto cuestan.", "en": "You are paying for Microsoft 365 licenses nobody uses. We show you how many and how much."},
         "description": {
-            "es": "Conecta tu tenant en 2 minutos (solo lectura) y recibe cada mes cuánto dinero estás perdiendo en licencias inactivas, cuentas deshabilitadas y licencias sin asignar.",
-            "en": "Connect your tenant in 2 minutes (read-only) and get a monthly report of how much money you lose on inactive users, disabled accounts and unassigned licenses.",
+            "es": "Conecta tu tenant en 2 minutos con permisos de solo lectura y en menos de 60 segundos ve el dinero que pierdes cada mes en cuentas deshabilitadas, usuarios inactivos y licencias sin asignar. Garantía: si en la prueba no encontramos al menos 3 veces el valor del plan en desperdicio mensual, no pagas nada.",
+            "en": "Connect your tenant in 2 minutes with read-only permissions and in under 60 seconds see the money you lose every month on disabled accounts, inactive users and unassigned licenses. Guarantee: if the trial does not find at least 3x the plan price in monthly waste, you pay nothing.",
         },
         "features": {
             "es": ["Conexión de solo lectura con consentimiento de administrador", "Detecta usuarios sin inicio de sesión en N días", "Cuentas deshabilitadas que aún consumen licencia", "Licencias compradas sin asignar", "Ahorro mensual estimado en USD con precios editables", "Reporte mensual automático por correo y CSV"],
             "en": ["Read-only connection with admin consent", "Finds users with no sign-in for N days", "Disabled accounts still holding licenses", "Purchased but unassigned licenses", "Estimated monthly savings in USD with editable prices", "Automatic monthly email report and CSV"],
         },
         "faq": {
-            "es": [["¿Pueden modificar mi tenant?", "No. La app solo pide permisos de lectura (usuarios, licencias e inicios de sesión)."], ["¿Necesito Entra ID P1?", "Para la fecha de último inicio de sesión sí se requiere P1 o superior en el tenant; sin ella igual detectamos cuentas deshabilitadas y licencias sin asignar."], ["¿Sirve para MSP?", "Sí, el plan MSP permite varios tenants de clientes."]],
-            "en": [["Can you change my tenant?", "No. The app only requests read permissions (users, licenses and sign-ins)."], ["Do I need Entra ID P1?", "Last sign-in date requires P1 or higher; without it we still find disabled accounts and unassigned licenses."], ["Does it work for MSPs?", "Yes, the MSP plan supports multiple customer tenants."]],
+            "es": [["¿Qué pasa si no encuentran desperdicio?", "Si durante la prueba gratis no aparece al menos 3 veces el valor del plan en desperdicio mensual, simplemente no pagas."], ["¿Pueden modificar mi tenant?", "No. La app solo pide permisos de lectura (usuarios, licencias e inicios de sesión)."], ["¿Necesito Entra ID P1?", "Para la fecha de último inicio de sesión sí se requiere P1 o superior en el tenant; sin ella igual detectamos cuentas deshabilitadas y licencias sin asignar."], ["¿Sirve para MSP?", "Sí, el plan MSP permite varios tenants de clientes."]],
+            "en": [["What if you find no waste?", "If the free trial does not find at least 3x the plan price in monthly waste, you simply don't pay."], ["Can you change my tenant?", "No. The app only requests read permissions (users, licenses and sign-ins)."], ["Do I need Entra ID P1?", "Last sign-in date requires P1 or higher; without it we still find disabled accounts and unassigned licenses."], ["Does it work for MSPs?", "Yes, the MSP plan supports multiple customer tenants."]],
         },
         "plans": [
             _p("starter", "Starter", 29, {"connections": 1, "users": 150}, {"es": ["1 tenant", "Hasta 150 usuarios"], "en": ["1 tenant", "Up to 150 users"]}),

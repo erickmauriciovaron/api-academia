@@ -10,6 +10,7 @@ from .products.registry import ROUTERS
 from .routers import admin, auth, billing, public
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logging.getLogger("alembic.runtime.plugins").setLevel(logging.WARNING)
 
 settings = get_settings()
 

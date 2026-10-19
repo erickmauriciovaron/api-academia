@@ -113,7 +113,9 @@ def checkout(data: CheckoutIn, user: User = Depends(require_admin), db: Session 
     s = get_settings()
 
     if s.paypal_mode == "mock":
-        # Modo desarrollo: activa sin cobrar.
+        # Modo desarrollo: activa sin cobrar. Nunca en un sitio público con HTTPS.
+        if s.app_url.startswith("https://"):
+            raise HTTPException(503, "Pagos no configurados")
         sub.plan, sub.interval, sub.status = data.plan, data.interval, "active"
         sub.current_period_end = datetime.now(timezone.utc) + timedelta(days=366 if data.interval == "year" else 31)
         db.commit()
