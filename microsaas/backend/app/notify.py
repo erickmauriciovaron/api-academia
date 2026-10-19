@@ -1,7 +1,9 @@
 import html
 import logging
+import re
 import smtplib
 from email.message import EmailMessage
+from email.utils import formatdate, make_msgid, parseaddr
 
 import httpx
 from sqlalchemy.exc import IntegrityError
@@ -40,11 +42,15 @@ def deliver_email(to: str, subject: str, html_body: str) -> str | None:
     if not s.smtp_host:
         log.info("EMAIL (sin SMTP) to=%s subject=%s", to, subject)
         return None
+    sender_domain = parseaddr(s.smtp_from)[1].rpartition("@")[2] or None
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = s.smtp_from
     msg["To"] = to
-    msg.set_content("Este mensaje requiere un cliente de correo compatible con HTML.")
+    # Encabezados que los filtros antispam (Outlook, Gmail) esperan en todo correo legítimo
+    msg["Date"] = formatdate(localtime=True)
+    msg["Message-ID"] = make_msgid(domain=sender_domain)
+    msg.set_content(html_to_text(html_body))
     msg.add_alternative(html_body, subtype="html")
     try:
         with smtplib.SMTP(s.smtp_host, s.smtp_port, timeout=20) as smtp:
@@ -66,6 +72,15 @@ def deliver_email(to: str, subject: str, html_body: str) -> str | None:
         reason = f"No se pudo conectar con {s.smtp_host}:{s.smtp_port}: {e}"
     log.error("Error enviando correo a %s: %s", to, reason)
     return reason
+
+
+def html_to_text(body: str) -> str:
+    """Versión en texto plano del correo (un texto vacío o genérico aumenta el puntaje de spam)."""
+    text = re.sub(r'<a [^>]*href="([^"]+)"[^>]*>(.*?)</a>', r"\2: \1", body, flags=re.S | re.I)
+    text = re.sub(r"<(br|/p|/h\d|/li|/tr|/div)[^>]*>", "\n", text, flags=re.I)
+    text = re.sub(r"<li[^>]*>", "- ", text, flags=re.I)
+    text = html.unescape(re.sub(r"<[^>]+>", "", text))
+    return re.sub(r"\n\s*\n+", "\n\n", text).strip()
 
 
 def _smtp_text(raw) -> str:
