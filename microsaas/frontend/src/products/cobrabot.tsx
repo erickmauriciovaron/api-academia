@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
 import ResourcePage, { FieldDef } from '../components/ResourcePage'
-import { Badge, ErrorBox, PageHead, Spinner, Stat, useAction, useAsync } from '../components/ui'
+import { Badge, ErrorBox, GettingStarted, PageHead, Spinner, Stat, useAction, useAsync } from '../components/ui'
 import { money, tr, useLang } from '../i18n'
 
 export function Dashboard() {
@@ -12,7 +12,16 @@ export function Dashboard() {
   return (
     <div>
       <PageHead title={tr('Cartera', 'Receivables')} subtitle={tr('Recordatorios automáticos antes y después del vencimiento.', 'Automatic reminders before and after due date.')} />
-      {currencies.length === 0 && <p className="muted">{tr('Carga tus clientes y facturas pendientes para empezar.', 'Add your customers and open invoices to start.')}</p>}
+      {currencies.length === 0 && (
+        <GettingStarted
+          intro={tr('CobraBot les recuerda a tus clientes que te paguen, por correo y WhatsApp, con tu enlace de pago. Configúralo en 3 pasos:', 'CobraBot reminds your customers to pay you by email and WhatsApp, with your payment link. Set it up in 3 steps:')}
+          steps={[
+            { title: tr('Agrega tus clientes', 'Add your customers'), text: tr('Nombre, correo y WhatsApp de quien te debe.', 'Name, email and WhatsApp of who owes you.'), to: '/app/cobrabot/customers', cta: tr('Ir a Clientes', 'Go to Customers') },
+            { title: tr('Carga las facturas pendientes', 'Load open invoices'), text: tr('Valor, moneda y fecha de vencimiento. También desde CSV.', 'Amount, currency and due date. Or import a CSV.'), to: '/app/cobrabot/invoices', cta: tr('Ir a Facturas', 'Go to Invoices') },
+            { title: tr('Pon tu enlace de pago', 'Add your payment link'), text: tr('PayPal, Wompi o datos de transferencia, y ajusta los textos y días de aviso.', 'PayPal, Wompi or bank details, then tune texts and timing.'), to: '/app/cobrabot/settings', cta: tr('Ir a Recordatorios', 'Go to Reminders') },
+          ]}
+        />
+      )}
       {currencies.map(([cur, v]) => (
         <div key={cur} className="grid grid-3 mb">
           <Stat label={`${tr('Por cobrar', 'Open')} (${cur})`} value={money(v.open, cur)} />
