@@ -4,11 +4,14 @@ import { useAuth } from '../auth'
 import { useCatalog } from '../catalog'
 import { fmtDate, setLang, tr, useLang } from '../i18n'
 import { PRODUCT_NAV } from '../products'
+import { toggleTheme, useTheme } from '../theme'
+import CommandPalette, { openCommandPalette, shortcutLabel } from './CommandPalette'
 
 export default function AppShell({ product, children }: { product?: string; children: ReactNode }) {
   const { me, logout, sub } = useAuth()
   const catalog = useCatalog()
   const lang = useLang()
+  const theme = useTheme()
   const [open, setOpen] = useState(false)
   const loc = useLocation()
   const p = catalog?.products.find((x) => x.slug === product)
@@ -20,12 +23,17 @@ export default function AppShell({ product, children }: { product?: string; chil
   return (
     <div className="shell" style={p ? ({ '--accent': p.color } as React.CSSProperties) : undefined}>
       <aside className={`sidebar ${open ? 'open' : ''}`} onClick={() => setOpen(false)}>
-        <Link to={product ? `/app/${product}` : '/app'} className="brand" style={{ color: 'var(--text)' }}>
-          <span>{p?.icon || '⚡'}</span> {p?.name || 'MicroSuite'}
+        <Link to={product ? `/app/${product}` : '/app'} className="brand">
+          <span className="logo-tile">{p?.icon || '⚡'}</span> {p?.name || 'MicroSuite'}
         </Link>
+        <button className="search-trigger" onClick={openCommandPalette}>
+          <span>⌕</span>
+          <span className="grow">{tr('Buscar…', 'Search…')}</span>
+          <kbd>{shortcutLabel}</kbd>
+        </button>
         {nav.filter((n) => !n.hidden).map((n) => (
           <NavLink key={n.path} end={n.path === ''} to={`/app/${product}${n.path ? '/' + n.path : ''}`} className={({ isActive }) => `nav ${isActive ? 'active' : ''}`}>
-            <span>{n.icon}</span> {n.label()}
+            <span className="ico">{n.icon}</span> {n.label()}
           </NavLink>
         ))}
         <div className="section">{tr('Mis apps', 'My apps')}</div>
@@ -33,54 +41,63 @@ export default function AppShell({ product, children }: { product?: string; chil
           const cp = catalog?.products.find((c) => c.slug === x.product)
           return (
             <NavLink key={x.product} to={`/app/${x.product}`} className={() => `nav ${x.product === product ? 'active' : ''}`}>
-              <span>{cp?.icon}</span> {x.product_name}
+              <span className="ico">{cp?.icon}</span> {x.product_name}
             </NavLink>
           )
         })}
         <NavLink to="/app/apps" className={({ isActive }) => `nav ${isActive ? 'active' : ''}`}>
-          <span>➕</span> {tr('Más apps', 'More apps')}
+          <span className="ico">➕</span> {tr('Más apps', 'More apps')}
         </NavLink>
         <div className="section">{tr('Cuenta', 'Account')}</div>
         {isAdmin && (
           <NavLink to="/app/billing" className={({ isActive }) => `nav ${isActive ? 'active' : ''}`}>
-            <span>💳</span> {tr('Planes y pagos', 'Plans & billing')}
+            <span className="ico">💳</span> {tr('Planes y pagos', 'Plans & billing')}
           </NavLink>
         )}
         <NavLink to="/app/team" className={({ isActive }) => `nav ${isActive ? 'active' : ''}`}>
-          <span>👥</span> {tr('Equipo', 'Team')}
+          <span className="ico">👥</span> {tr('Equipo', 'Team')}
         </NavLink>
         <NavLink to="/app/account" className={({ isActive }) => `nav ${isActive ? 'active' : ''}`}>
-          <span>⚙️</span> {tr('Mi perfil', 'Profile')}
+          <span className="ico">⚙️</span> {tr('Mi perfil', 'Profile')}
         </NavLink>
         {me?.is_superadmin && (
           <NavLink to="/app/admin" className={({ isActive }) => `nav ${isActive ? 'active' : ''}`}>
-            <span>🛠</span> Superadmin
+            <span className="ico">🛠</span> Superadmin
           </NavLink>
         )}
         <div className="grow" />
-        <div className="row small" style={{ padding: '10px 8px' }}>
-          <button className="btn sm ghost" onClick={(e) => (e.stopPropagation(), setLang(lang === 'es' ? 'en' : 'es'))}>
+        <div className="row small" style={{ padding: '10px 4px 0', gap: 4 }}>
+          <button className="btn sm ghost" onClick={(e) => (e.stopPropagation(), setLang(lang === 'es' ? 'en' : 'es'))} title={tr('Idioma', 'Language')}>
             🌐 {lang.toUpperCase()}
           </button>
+          <button className="btn sm ghost" onClick={(e) => (e.stopPropagation(), toggleTheme())} title={tr('Tema claro/oscuro', 'Light/dark theme')}>
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+          <div className="grow" />
           <button className="btn sm ghost" onClick={logout}>
-            {tr('Salir', 'Log out')}
+            {tr('Salir', 'Log out')} ↩
           </button>
         </div>
-        <div className="muted small" style={{ padding: '0 10px' }}>
-          {me?.name}
-          <br />
-          {me?.tenant.name}
+        <div className="user-card">
+          <span className="avatar">{initials(me?.name)}</span>
+          <div className="who small">
+            <b>{me?.name}</b>
+            <span className="muted">{me?.tenant.name}</span>
+          </div>
         </div>
       </aside>
+      <CommandPalette product={product} />
       <div>
         <div className="topbar">
           <button className="btn ghost" onClick={() => setOpen(!open)} aria-label="menu">
             ☰
           </button>
-          <strong>
-            {p?.icon} {p?.name || 'MicroSuite'}
+          <strong className="row" style={{ gap: 8 }}>
+            <span className="logo-tile" style={{ width: 28, height: 28, fontSize: 15 }}>{p?.icon || '⚡'}</span> {p?.name || 'MicroSuite'}
           </strong>
-          <span />
+          <button className="btn ghost" onClick={openCommandPalette} aria-label={tr('Buscar', 'Search')}>
+            ⌕
+          </button>
         </div>
         <main className="main" key={loc.pathname.split('/').slice(0, 3).join('/')}>
           {s && s.status === 'trialing' && s.has_access && (
@@ -103,4 +120,9 @@ export default function AppShell({ product, children }: { product?: string; chil
       </div>
     </div>
   )
+}
+
+function initials(name?: string) {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean)
+  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || '·'
 }

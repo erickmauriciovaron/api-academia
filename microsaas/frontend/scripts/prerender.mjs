@@ -57,7 +57,7 @@ function page({ lang, headHtml, body }) {
   html = html.replace(/<title>[\s\S]*?<\/title>/, '').replace(/<meta name="description"[^>]*>/, '')
   html = html.replace('</head>', `    ${headHtml}\n  </head>`)
   // Contenido visible para buscadores y navegadores sin JS; React lo reemplaza al montar.
-  html = html.replace('<div id="root"></div>', `<div id="root"><main style="max-width:960px;margin:0 auto;padding:24px;font-family:system-ui,sans-serif">${body}</main></div>`)
+  html = html.replace('<div id="root"></div>', `<div id="root"><main style="max-width:960px;margin:0 auto;padding:24px">${body}</main></div>`)
   return html
 }
 
